@@ -13,13 +13,15 @@ permissions:
 
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'ryamazura-cloud/dokoshado-ios-build' && github.ref == 'refs/heads/main' && github.actor == 'ryamazura-cloud'
+    environment: app-store-signing
     runs-on: macos-26
     timeout-minutes: 45
     env:
       FIREBASE_ANALYTICS_WITHOUT_ADID: "true"
       APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
       - name: Check signing configuration
@@ -36,8 +38,12 @@ jobs:
       - name: Set up Flutter
         run: |
           set -euo pipefail
-          git clone --depth 1 --branch 3.47.9 https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          git init "$RUNNER_TEMP/flutter"
+          git -C "$RUNNER_TEMP/flutter" remote add origin https://github.com/flutter/flutter.git
+          git -C "$RUNNER_TEMP/flutter" fetch --depth 1 origin c197ca5199e9ee5661e865596c9c07294dfab51c
+          git -C "$RUNNER_TEMP/flutter" checkout --detach FETCH_HEAD
           echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+          gem install xcodeproj --no-document
       - name: Install iOS Firebase configuration
         env:
           IOS_FIREBASE_CONFIG_BASE64: ${{ secrets.IOS_FIREBASE_CONFIG_BASE64 }}
@@ -51,6 +57,11 @@ jobs:
           assert config['BUNDLE_ID'] == 'biz.wisemap.dokoshado', 'Firebase bundle mismatch'
           assert config['PROJECT_ID'] == 'encre-ab3d8', 'Firebase project mismatch'
           PY
+      - name: Resolve dependencies and test
+        run: |
+          set -euo pipefail
+          flutter pub get --enforce-lockfile
+          flutter test
       - name: Install signing identity
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
@@ -58,6 +69,7 @@ jobs:
           BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
         run: |
           set -euo pipefail
+          umask 077
           printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 --decode > "$RUNNER_TEMP/distribution.p12"
           printf '%s' "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/app.mobileprovision"
           keychain_password=$(openssl rand -hex 32)
@@ -85,15 +97,9 @@ jobs:
           with open(os.environ['GITHUB_ENV'], 'a') as env:
               env.write('PROFILE_UUID=' + profile['UUID'] + '\n')
           PY
-      - name: Resolve dependencies and test
-        run: |
-          set -euo pipefail
-          flutter pub get --enforce-lockfile
-          flutter test
       - name: Configure distribution signing
         run: |
           set -euo pipefail
-          gem install xcodeproj --no-document
           ruby - <<'RUBY'
           require 'xcodeproj'
           project = Xcodeproj::Project.open('ios/Runner.xcodeproj')
@@ -121,7 +127,7 @@ jobs:
             --dart-define=DOKOSHADO_LIVE_ADS=true
           test -n "$(find build/ios/ipa -name '*.ipa' -print -quit)"
           shasum -a 256 build/ios/ipa/*.ipa
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: dokoshado-app-store-1.0.0-${{ inputs.build_number }}
           path: build/ios/ipa/*.ipa

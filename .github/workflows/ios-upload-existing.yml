@@ -26,6 +26,7 @@ concurrency:
 
 jobs:
   upload:
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'ryamazura-cloud/dokoshado-ios-build' && github.ref == 'refs/heads/main' && github.actor == 'ryamazura-cloud'
     runs-on: macos-26
     timeout-minutes: 45
     environment: app-store-upload
@@ -45,7 +46,30 @@ jobs:
           test -n "$ASC_PRIVATE_KEY_BASE64"
           [[ "$EXPECTED_BUILD" =~ ^[1-9][0-9]*$ ]]
           [[ "$EXPECTED_SHA256" =~ ^[0-9a-f]{64}$ ]]
-      - uses: actions/download-artifact@v4
+      - name: Require an approved main-branch signing run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, urllib.request
+          run_id = os.environ['SOURCE_RUN_ID']
+          assert run_id.isascii() and run_id.isdigit(), 'Invalid source run ID'
+          request = urllib.request.Request(
+              'https://api.github.com/repos/ryamazura-cloud/dokoshado-ios-build/actions/runs/' + run_id,
+              headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                       'Accept': 'application/vnd.github+json'})
+          with urllib.request.urlopen(request, timeout=30) as response:
+              run = json.load(response)
+          assert run['repository']['full_name'] == 'ryamazura-cloud/dokoshado-ios-build'
+          assert run['path'] == '.github/workflows/ios-app-store.yml'
+          assert run['head_branch'] == 'main' and run['event'] == 'workflow_dispatch'
+          assert run['actor']['login'] == 'ryamazura-cloud'
+          assert run['status'] == 'completed' and run['conclusion'] == 'success'
+          print('Verified successful owner-dispatched main-branch signing run.')
+          PY
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: dokoshado-app-store-1.0.0-${{ inputs.build_number }}
           run-id: ${{ inputs.source_run_id }}

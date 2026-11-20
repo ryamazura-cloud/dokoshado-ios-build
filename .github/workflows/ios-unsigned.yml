@@ -16,18 +16,23 @@ permissions:
 
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'ryamazura-cloud/dokoshado-ios-build' && github.ref == 'refs/heads/main' && github.actor == 'ryamazura-cloud'
+    environment: ios-build-config
     runs-on: macos-26
     timeout-minutes: 45
     env:
       FIREBASE_ANALYTICS_WITHOUT_ADID: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
 
       - name: Set up Flutter
         run: |
-          git clone --depth 1 --branch 3.47.9 https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          git init "$RUNNER_TEMP/flutter"
+          git -C "$RUNNER_TEMP/flutter" remote add origin https://github.com/flutter/flutter.git
+          git -C "$RUNNER_TEMP/flutter" fetch --depth 1 origin c197ca5199e9ee5661e865596c9c07294dfab51c
+          git -C "$RUNNER_TEMP/flutter" checkout --detach FETCH_HEAD
           echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
 
       - name: Install Firebase configuration
@@ -59,7 +64,7 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent "$app" "dokoshado-ios-$BUILD_TARGET.zip"
 
       - name: Save iOS build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: dokoshado-ios-${{ inputs.target }}
           path: dokoshado-ios-${{ inputs.target }}.zip

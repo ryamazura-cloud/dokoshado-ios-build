@@ -48,3 +48,22 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+# Private signing/upload credentials and exported archives
+*.p8
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.mobileprovision
+*.pem
+*.key
+.env
+.env.*
+!.env.example
+key.properties
+ExportOptions.plist
+*.ipa
+*.aab
+*.apk
+*.dpapi
+*.clixml
