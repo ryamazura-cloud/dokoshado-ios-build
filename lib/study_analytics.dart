@@ -27,7 +27,7 @@ class StudyAnalytics {
     required TargetPlatform platform,
   }) async =>
       await preferences.getBool(_enabledKey) ??
-      (platform == TargetPlatform.android);
+      (platform == TargetPlatform.android || platform == TargetPlatform.iOS);
 
   static Future<StudyAnalytics?> connect() async {
     if (kIsWeb ||

@@ -21,13 +21,13 @@ class _Preferences extends Fake implements SharedPreferencesAsync {
 
 void main() {
   test(
-    'Android defaults on, iOS remains off, saved choices survive restart',
+    'Android and iOS default on, saved choices survive restart',
     () async {
       final prefs = _Preferences();
       Future<bool> load(TargetPlatform platform) =>
           StudyAnalytics.loadEnabled(prefs, platform: platform);
       expect(await load(TargetPlatform.android), isTrue);
-      expect(await load(TargetPlatform.iOS), isFalse);
+      expect(await load(TargetPlatform.iOS), isTrue);
       final sent = <String>[];
       final analytics = StudyAnalytics(
         preferences: prefs,
@@ -39,6 +39,7 @@ void main() {
       expect(sent, ['normal_study_day']);
       await analytics.changeEnabled(false);
       expect(await load(TargetPlatform.android), isFalse);
+      expect(await load(TargetPlatform.iOS), isFalse);
       await analytics.completed(DateTime(2026, 11, 20));
       expect(sent, ['normal_study_day']);
       await analytics.changeEnabled(true);
