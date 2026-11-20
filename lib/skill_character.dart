@@ -25,14 +25,19 @@ class SkillCharacter extends StatelessWidget {
     child: AspectRatio(
       aspectRatio: 3 / 5,
       child: unlocked
-          ? Image.asset(
-              'assets/characters/$category.webp',
-              // Each category sheet contains five equal frames in one row.
-              fit: BoxFit.fitHeight,
-              alignment: Alignment(-1 + (level - 1) / 2, 0),
-              cacheWidth: 1500,
-              semanticLabel:
-                  '${interestLabel(category)} Lv.$level $titleのキャラクター',
+          ? ClipRect(
+              child: FractionallySizedBox(
+                widthFactor: 5,
+                alignment: Alignment(-1 + (level - 1) / 2, 0),
+                child: Image.asset(
+                  'assets/characters/$category.webp',
+                  // Each category sheet contains five equal frames in one row.
+                  fit: BoxFit.fill,
+                  cacheWidth: 1500,
+                  semanticLabel:
+                      '${interestLabel(category)} Lv.$level $titleのキャラクター',
+                ),
+              ),
             )
           : Semantics(
               label: 'Lv.$level 未解放のキャラクター',
