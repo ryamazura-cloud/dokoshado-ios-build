@@ -26,13 +26,16 @@ void main() {
       final root = GlobalKey();
       final images = <String, String>{};
       binding.reportData = {'images': images};
-      Widget app(Widget home) => MaterialApp(
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorSchemeSeed: const Color(0xff215caa),
-          useMaterial3: true,
+      Widget app(Widget home) => RepaintBoundary(
+        key: root,
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            colorSchemeSeed: const Color(0xff215caa),
+            useMaterial3: true,
+          ),
+          home: home,
         ),
-        home: RepaintBoundary(key: root, child: home),
       );
       Future<void> capture(String name) async {
         await tester.pump();
