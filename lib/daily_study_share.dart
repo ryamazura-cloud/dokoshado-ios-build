@@ -202,8 +202,10 @@ Future<void> showDailyStudyShare(
               onPressed: sharing
                   ? null
                   : () async {
-                      final box = buttonContext.findRenderObject()! as RenderBox;
-                      final shareOrigin = box.localToGlobal(Offset.zero) & box.size;
+                      final box =
+                          buttonContext.findRenderObject()! as RenderBox;
+                      final shareOrigin =
+                          box.localToGlobal(Offset.zero) & box.size;
                       refresh(() => sharing = true);
                       ui.Image? image;
                       try {

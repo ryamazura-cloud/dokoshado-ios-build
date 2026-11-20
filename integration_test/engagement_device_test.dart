@@ -11,12 +11,41 @@ import 'package:dokoshado/daily_study_share.dart';
 import 'package:dokoshado/dashboard.dart';
 import 'package:dokoshado/activity.dart';
 import 'package:dokoshado/learning_dashboard.dart';
+import 'package:dokoshado/purchase_access.dart';
+
+class _DevicePurchase extends PurchaseAccess {
+  @override
+  Future<void> connect() async {}
+}
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   testWidgets(
     'device UI, share PNG, native share sheet and completion ticket',
     (tester) async {
+      final root = GlobalKey();
+      final images = <String, String>{};
+      binding.reportData = {'images': images};
+      Widget app(Widget home) => MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          colorSchemeSeed: const Color(0xff215caa),
+          useMaterial3: true,
+        ),
+        home: RepaintBoundary(key: root, child: home),
+      );
+      Future<void> capture(String name) async {
+        await tester.pump();
+        final boundary =
+            root.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+        final image = await boundary.toImage(pixelRatio: 2.625);
+        images[name] = base64Encode(
+          (await image.toByteData(format: ui.ImageByteFormat.png))!.buffer
+              .asUint8List(),
+        );
+        image.dispose();
+      }
+
       final now = DateTime.now();
       final stamp = now.millisecondsSinceEpoch;
       SharedPreferences.setMockInitialValues({
@@ -26,15 +55,17 @@ void main() {
         'tickets.challengeEvents': ['$stamp|60|0||daily'],
       });
       final prefs = await SharedPreferences.getInstance();
-      await tester.pumpWidget(MaterialApp(home: Practice(prefs)));
+      await tester.pumpWidget(
+        app(Practice(prefs, purchases: _DevicePurchase())),
+      );
       await tester.pumpAndSettle();
-      await binding.convertFlutterSurfaceToImage();
+
       await tester.ensureVisible(find.text('カテゴリー変更'));
-      await binding.takeScreenshot('01-category-button');
+      await capture('01-category-button');
       await tester.tap(find.text('カテゴリー変更'));
       await tester.pumpAndSettle();
       expect(find.text('興味のある分野を選ぶ'), findsOneWidget);
-      await binding.takeScreenshot('02-category-selection');
+      await capture('02-category-selection');
       await tester.tap(find.text('キャンセル'));
       await tester.pumpAndSettle();
 
@@ -47,7 +78,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('今日の練習：3問完了'), findsOneWidget);
       await tester.ensureVisible(find.text('今日のがんばりをシェア'));
-      await binding.takeScreenshot('03-completion-share');
+      await capture('03-completion-share');
       await tester.tap(find.text('今日のがんばりをシェア'));
       await tester.pumpAndSettle();
       await tester.runAsync(
@@ -57,7 +88,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await binding.takeScreenshot('04-share-preview');
+      await capture('04-share-preview');
       final boundary = tester.renderObject<RenderRepaintBoundary>(
         find
             .ancestor(
@@ -70,11 +101,11 @@ void main() {
       final png = (await image.toByteData(format: ui.ImageByteFormat.png))!
           .buffer
           .asUint8List();
-      binding.reportData = {
+      binding.reportData!.addAll({
         'sharePng': base64Encode(png),
         'shareWidth': image.width,
         'shareHeight': image.height,
-      };
+      });
       expect(image.width, 1080);
       expect(image.height, 1080);
       image.dispose();
@@ -106,8 +137,8 @@ void main() {
           ),
       ];
       await tester.pumpWidget(
-        MaterialApp(
-          home: QuestPage(
+        app(
+          QuestPage(
             quests: questsFor(events, {}, now),
             events: events,
             commonXp: 20,
@@ -118,15 +149,15 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('小さな一歩が、次のレベルへ。'), findsOneWidget);
-      await binding.takeScreenshot('05-quests');
+      await capture('05-quests');
       final reward = find.text('報酬を受け取る').first;
       await tester.ensureVisible(reward);
       await tester.tap(reward);
       await tester.pumpAndSettle();
       expect(find.text('受け取り済み'), findsWidgets);
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
+        app(
+          Scaffold(
             body: SingleChildScrollView(
               child: ActivityChart(
                 points: chartPeriods(
@@ -146,7 +177,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('${now.day}\n${weekdayLabel(now)}'), findsOneWidget);
-      await binding.takeScreenshot('06-daily-chart');
+      await capture('06-daily-chart');
     },
   );
 }

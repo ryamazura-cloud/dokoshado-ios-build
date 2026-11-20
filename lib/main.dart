@@ -1818,7 +1818,7 @@ class _PracticeState extends State<Practice> with WidgetsBindingObserver {
   List<Widget> learningHistory() {
     final days = <String, DailyActivity>{};
     final visits = (prefs.getStringList('visit.days') ?? const []).toSet();
-    for (final event in events) {
+    for (final event in [...events, ...completedChallenges]) {
       final key = dayKey(event.when);
       visits.add(key);
       days[key] = (days[key] ?? const DailyActivity()).plus(

@@ -9,6 +9,7 @@ import 'package:dokoshado/daily_study_share.dart';
 import 'package:dokoshado/review_prompt.dart';
 import 'package:dokoshado/main.dart' show Practice;
 import 'package:dokoshado/purchase_access.dart';
+import 'package:dokoshado/learning_dashboard.dart';
 
 StudyEvent event(
   DateTime date, {
@@ -269,6 +270,18 @@ void main() {
         TicketKind.daily,
       );
       expect(state.availableTickets(DateTime.now()).daily, 1);
+      await state.back();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('学習記録'));
+      await tester.pumpAndSettle();
+      final dashboard = tester.widget<LearningDashboard>(
+        find.byType(LearningDashboard),
+      );
+      expect(dashboard.days[dayKey(DateTime.now())]!.questions, 3);
+      expect(
+        dashboard.days[dayKey(DateTime.now())]!.milliseconds,
+        greaterThanOrEqualTo(90000),
+      );
     },
   );
 

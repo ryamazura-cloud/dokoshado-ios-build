@@ -189,6 +189,6 @@ String studyDuration(int milliseconds) {
 }
 
 String shareSummary(List<PeriodTotal> totals) =>
-    'どこシャドで英語をシャドーイング！\n\n'
+    '英語トレーニングの記録\n\n'
     '${totals.map((total) => '${total.label}（${dayKey(total.start)}〜${dayKey(DateTime(total.end.year, total.end.month, total.end.day - 1))}）\n学習問題数：${total.questions}問\n学習時間：${studyDuration(total.milliseconds)}').join('\n\n')}\n\n'
-    '#どこシャド #シャドーイング #英語学習';
+    'どこシャドで練習しました。\nhttps://dokoshado.wisemap.biz/';
