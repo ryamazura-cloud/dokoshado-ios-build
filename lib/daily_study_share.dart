@@ -202,6 +202,8 @@ Future<void> showDailyStudyShare(
               onPressed: sharing
                   ? null
                   : () async {
+                      final box = buttonContext.findRenderObject()! as RenderBox;
+                      final shareOrigin = box.localToGlobal(Offset.zero) & box.size;
                       refresh(() => sharing = true);
                       ui.Image? image;
                       try {
@@ -218,8 +220,6 @@ Future<void> showDailyStudyShare(
                         final bytes = (await image.toByteData(
                           format: ui.ImageByteFormat.png,
                         ))!.buffer.asUint8List();
-                        final box =
-                            buttonContext.findRenderObject()! as RenderBox;
                         await SharePlus.instance.share(
                           ShareParams(
                             text: dailyStudyShareText(total),
@@ -230,8 +230,7 @@ Future<void> showDailyStudyShare(
                             fileNameOverrides: [
                               'dokoshado-${dayKey(date)}.png',
                             ],
-                            sharePositionOrigin:
-                                box.localToGlobal(Offset.zero) & box.size,
+                            sharePositionOrigin: shareOrigin,
                           ),
                         );
                       } catch (_) {
