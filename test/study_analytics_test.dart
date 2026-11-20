@@ -1,9 +1,13 @@
 import 'package:dokoshado/study_analytics.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _Preferences extends Fake implements SharedPreferencesAsync {
   final values = <String, Object>{};
+
+  @override
+  Future<bool?> getBool(String key) async => values[key] as bool?;
 
   @override
   Future<String?> getString(String key) async => values[key] as String?;
@@ -16,6 +20,33 @@ class _Preferences extends Fake implements SharedPreferencesAsync {
 }
 
 void main() {
+  test(
+    'Android defaults on, iOS remains off, saved choices survive restart',
+    () async {
+      final prefs = _Preferences();
+      Future<bool> load(TargetPlatform platform) =>
+          StudyAnalytics.loadEnabled(prefs, platform: platform);
+      expect(await load(TargetPlatform.android), isTrue);
+      expect(await load(TargetPlatform.iOS), isFalse);
+      final sent = <String>[];
+      final analytics = StudyAnalytics(
+        preferences: prefs,
+        logEvent: (name, _) async => sent.add(name),
+        setCollectionEnabled: (_) async {},
+        enabled: await load(TargetPlatform.android),
+      );
+      await analytics.completed(DateTime(2026, 11, 19));
+      expect(sent, ['normal_study_day']);
+      await analytics.changeEnabled(false);
+      expect(await load(TargetPlatform.android), isFalse);
+      await analytics.completed(DateTime(2026, 11, 20));
+      expect(sent, ['normal_study_day']);
+      await analytics.changeEnabled(true);
+      expect(await load(TargetPlatform.android), isTrue);
+      expect(await load(TargetPlatform.iOS), isTrue);
+    },
+  );
+
   test(
     'normal practice milestones are opt-in and recorded once per local day',
     () async {
@@ -51,10 +82,22 @@ void main() {
       await restarted.completed(nextDay);
       expect(choices, [true, false]);
       expect(sent.map((event) => [event.$1, event.$2]), [
-        ['normal_study_day', {'study_day': '2026-11-10'}],
-        ['normal_3_reached', {'study_day': '2026-11-10'}],
-        ['normal_after_3_start', {'study_day': '2026-11-10'}],
-        ['normal_study_day', {'study_day': '2026-11-11'}],
+        [
+          'normal_study_day',
+          {'study_day': '2026-11-10'},
+        ],
+        [
+          'normal_3_reached',
+          {'study_day': '2026-11-10'},
+        ],
+        [
+          'normal_after_3_start',
+          {'study_day': '2026-11-10'},
+        ],
+        [
+          'normal_study_day',
+          {'study_day': '2026-11-11'},
+        ],
       ]);
     },
   );

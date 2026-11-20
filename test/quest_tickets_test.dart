@@ -120,10 +120,10 @@ void main() {
         ),
       );
       expect(
-        find.textContaining('報酬 ${quest.reward} EXP ＋ 追加チケット1枚'),
+        find.textContaining('+${quest.reward} EXP ＋ 追加チケット1枚'),
         findsOneWidget,
       );
-      expect(find.text('「報酬を受け取る」でEXPと追加チケットを受け取れます。'), findsOneWidget);
+      expect(find.text('「報酬を受け取る」でEXPと追加チケットを受け取れます。'), findsNothing);
     });
   }
 }

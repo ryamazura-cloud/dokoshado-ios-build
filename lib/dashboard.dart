@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'activity.dart';
+import 'growth.dart';
+
 enum PracticeRating {
   great('ばっちり'),
   okay('まあまあ'),
@@ -169,10 +172,16 @@ class QuestPage extends StatefulWidget {
     required this.quests,
     required this.claim,
     this.showTutorial = false,
+    this.events = const [],
+    this.commonXp = 0,
+    this.now,
   });
   final List<Quest> quests;
   final Future<bool> Function(Quest quest) claim;
   final bool showTutorial;
+  final List<StudyEvent> events;
+  final int commonXp;
+  final DateTime? now;
 
   @override
   State<QuestPage> createState() => _QuestPageState();
@@ -183,6 +192,8 @@ class _QuestPageState extends State<QuestPage> {
   final scroll = ScrollController();
   String? guidedReward;
   bool receivedReward = false;
+  int receivedXp = 0;
+  final receivedKeys = <String>{};
 
   @override
   void initState() {
@@ -210,6 +221,9 @@ class _QuestPageState extends State<QuestPage> {
 
   Future<bool> claim(Quest quest) async {
     final saved = await widget.claim(quest);
+    if (mounted && saved && receivedKeys.add(quest.key)) {
+      setState(() => receivedXp += quest.reward);
+    }
     if (mounted && saved && widget.showTutorial && guidedReward != null) {
       setState(() {
         guidedReward = null;
@@ -231,6 +245,8 @@ class _QuestPageState extends State<QuestPage> {
     final guideBack = widget.showTutorial && guidedReward == null;
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Colors.white,
         title: const Text('クエスト'),
         leading: guideBack
             ? const Padding(
@@ -248,9 +264,23 @@ class _QuestPageState extends State<QuestPage> {
             if (guideBack)
               _QuestHint(
                 text: receivedReward ? '経験値を受け取りました。左上の矢印を押して、トップに戻りましょう。' : '達成したクエストの報酬を受け取ると、共通レベルの経験値が増えます。今は受け取れる報酬がないので、左上の矢印でトップに戻りましょう。',
-              )
-            else
-              const Text('クエストを達成し、報酬を受け取ると共通EXPが増えます。'),
+              ),
+            const Text(
+              '小さな一歩が、次のレベルへ。',
+              style: TextStyle(fontSize: 23, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 12),
+            const Text('聞いて、声に出す練習も、復習も。取り組んだ分だけクエストが進みます。達成したら報酬を受け取りましょう。'),
+            const SizedBox(height: 16),
+            Text(
+              '共通 Lv. ${Growth(widget.commonXp + receivedXp).level} ・ 累計 ${widget.commonXp + receivedXp} EXP',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 18),
+            WeeklyAdventure(
+              events: widget.events,
+              now: widget.now ?? DateTime.now(),
+            ),
             for (final weekly in [false, true]) ...[
               const SizedBox(height: 16),
               Text(
@@ -268,6 +298,107 @@ class _QuestPageState extends State<QuestPage> {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class WeeklyAdventure extends StatelessWidget {
+  const WeeklyAdventure({super.key, required this.events, required this.now});
+  final List<StudyEvent> events;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final today = calendarDay(now.toLocal());
+    final monday = DateTime(
+      today.year,
+      today.month,
+      today.day - today.weekday + 1,
+    );
+    final studied = events
+        .where((e) => !e.when.isAfter(now))
+        .map((e) => dayKey(e.when.toLocal()))
+        .toSet();
+    final streak = currentStreak(studied, today);
+    final blue = Theme.of(context).colorScheme.primary;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xffdce5fa),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            '今週の冒険　${today.month}月${today.day}日',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              for (var i = 0; i < 7; i++)
+                Expanded(
+                  child: Builder(
+                    builder: (context) {
+                      final day = DateTime(
+                        monday.year,
+                        monday.month,
+                        monday.day + i,
+                      );
+                      final done = studied.contains(dayKey(day));
+                      final current = day == today;
+                      return Semantics(
+                        label:
+                            '${dayKey(day)} ${done ? '学習済み' : '未学習'}${current ? ' 今日' : ''}',
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 2),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: done ? blue : Colors.white,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: current
+                                  ? const Color(0xffbf911f)
+                                  : Colors.transparent,
+                              width: 2,
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(
+                                done
+                                    ? Icons.auto_awesome
+                                    : Icons.circle_outlined,
+                                size: 19,
+                                color: done ? Colors.white : Colors.grey,
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                weekdayLabel(day),
+                                style: TextStyle(
+                                  color: done ? Colors.white : Colors.black87,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(streak > 0 ? '$streak日連続で学習中。今日も一歩ずつ！' : '今日も、自分のペースで一歩ずつ！'),
+          const SizedBox(height: 6),
+          const Text(
+            '休んだ日があっても、獲得したEXPや称号はそのままです。',
+            style: TextStyle(fontSize: 12),
+          ),
+        ],
       ),
     );
   }
@@ -351,24 +482,45 @@ class _QuestCardState extends State<_QuestCard> {
       child: const Text('報酬を受け取る'),
     );
     return Card(
+      color: const Color(0xffeef2fc),
+      elevation: 0,
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(q.title, style: Theme.of(context).textTheme.titleMedium),
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              spacing: 12,
+              runSpacing: 4,
+              children: [
+                Text(
+                  q.title,
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '+${q.reward} EXP${ticketRewardForQuest(q.key) > 0 ? ' ＋ 追加チケット1枚' : ''}',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
             Text(q.description),
             const SizedBox(height: 8),
             LinearProgressIndicator(value: (q.value / q.goal).clamp(0, 1)),
             const SizedBox(height: 6),
-            Text(
-              '${q.value.clamp(0, q.goal)} / ${q.goal}　・　報酬 ${q.reward} EXP'
-              '${ticketRewardForQuest(q.key) > 0 ? ' ＋ 追加チケット1枚' : ''}',
-            ),
-            if (ticketRewardForQuest(q.key) > 0)
-              const Text('「報酬を受け取る」でEXPと追加チケットを受け取れます。'),
+            Text('${q.value.clamp(0, q.goal)} / ${q.goal}'),
+            const SizedBox(height: 8),
             if (q.claimed || received)
-              const Text('受け取り済み')
+              FilledButton.icon(
+                onPressed: null,
+                icon: Icon(Icons.check_circle_outline),
+                label: Text('受け取り済み'),
+              )
             else if (q.value >= q.goal)
               if (widget.rewardAnchor case final anchor?) ...[
                 const _QuestHint(

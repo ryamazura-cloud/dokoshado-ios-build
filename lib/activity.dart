@@ -140,12 +140,15 @@ List<PeriodTotal> chartPeriods(
         : DateTime(start.year, start.month, start.day + 1);
     return sumPeriod(
       days,
-      monthly ? '${start.month}月' : '${start.month}/${start.day}',
+      monthly ? '${start.month}月' : '${start.day}\n${weekdayLabel(start)}',
       start,
       end,
     );
   });
 }
+
+String weekdayLabel(DateTime date) =>
+    const ['月', '火', '水', '木', '金', '土', '日'][date.weekday - 1];
 
 int bestStreak(Set<String> visits) {
   final sorted = visits.map(parseDay).toList()..sort();

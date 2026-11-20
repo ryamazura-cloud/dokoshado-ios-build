@@ -22,6 +22,13 @@ class StudyAnalytics {
   bool enabled;
   Future<void> _pending = Future.value();
 
+  static Future<bool> loadEnabled(
+    SharedPreferencesAsync preferences, {
+    required TargetPlatform platform,
+  }) async =>
+      await preferences.getBool(_enabledKey) ??
+      (platform == TargetPlatform.android);
+
   static Future<StudyAnalytics?> connect() async {
     if (kIsWeb ||
         (defaultTargetPlatform != TargetPlatform.android &&
@@ -31,7 +38,10 @@ class StudyAnalytics {
       await Firebase.initializeApp();
       final firebase = FirebaseAnalytics.instance;
       final preferences = SharedPreferencesAsync();
-      final enabled = await preferences.getBool(_enabledKey) ?? false;
+      final enabled = await loadEnabled(
+        preferences,
+        platform: defaultTargetPlatform,
+      );
       await firebase.setConsent(
         adStorageConsentGranted: false,
         adUserDataConsentGranted: false,

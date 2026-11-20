@@ -28,6 +28,8 @@ import 'purchase_access.dart';
 import 'practice_finished.dart';
 import 'karaoke_timings.dart';
 import 'tutorial_layout.dart';
+import 'daily_study_share.dart';
+import 'review_prompt.dart';
 
 import 'challenges.dart';
 import 'scenes.dart';
@@ -255,6 +257,7 @@ class _PracticeState extends State<Practice> with WidgetsBindingObserver {
   SharedPreferences get prefs => widget.preferences;
   ({StudyEvent event, List<String> history})? pendingCompletion;
   final studyClock = Stopwatch();
+  bool sharedThisPractice = false;
   bool historyOpen = false;
   bool claimSaving = false;
   bool ticketPromptOpen = false;
@@ -308,6 +311,12 @@ class _PracticeState extends State<Practice> with WidgetsBindingObserver {
       if (prefs.getStringList('practice.${clip.file}') case final values?)
         ...studyEvents(values),
   ];
+  List<StudyEvent> get completedChallenges {
+    final attempts =
+        prefs.getStringList('tickets.challengeEvents') ?? const <String>[];
+    return attempts.isEmpty ? const [] : studyEvents(['0', '0', ...attempts]);
+  }
+
   String? challengeResult;
 
   List<StudyEvent> questionEvents(int question) {
@@ -844,6 +853,7 @@ class _PracticeState extends State<Practice> with WidgetsBindingObserver {
       round = 0;
       complete = false;
       pendingCompletion = null;
+      sharedThisPractice = false;
       challengeResult = null;
       speed = 1;
       resetPlayback();
@@ -1018,7 +1028,7 @@ class _PracticeState extends State<Practice> with WidgetsBindingObserver {
           prefs.getStringList('tickets.challengeEvents') ?? const <String>[];
       final attempt = encodeStudyEvent((
         when: now,
-        seconds: 0,
+        seconds: studyClock.elapsed.inSeconds,
         difficultReview: false,
         rating: null,
         ticket: ticket,
@@ -1098,6 +1108,21 @@ class _PracticeState extends State<Practice> with WidgetsBindingObserver {
         unawaited(widget.analytics?.completed(DateTime.now()));
       }
       await back();
+      if (mounted &&
+          tutorial == null &&
+          !sharedThisPractice &&
+          foreground &&
+          !isPreviewBuild) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted &&
+              index == null &&
+              treeOpen &&
+              foreground &&
+              tutorial == null) {
+            unawaited(ReviewPrompt.requestIfDue(prefs, events, DateTime.now()));
+          }
+        });
+      }
     }
   }
 
@@ -1473,6 +1498,8 @@ class _PracticeState extends State<Practice> with WidgetsBindingObserver {
               QuestPage(
                 quests: current,
                 claim: claimQuest,
+                events: events,
+                commonXp: growth().xp,
                 showTutorial: inTutorial,
               ),
             );
@@ -1670,10 +1697,21 @@ class _PracticeState extends State<Practice> with WidgetsBindingObserver {
                 ),
                 guided(
                   TutorialStep.categories,
-                  IconButton(
-                    tooltip: 'カテゴリーを選ぶ',
-                    icon: const Icon(Icons.tune),
-                    onPressed: editDisplayedCategories,
+                  Tooltip(
+                    message: 'カテゴリーを選ぶ',
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 9),
+                        minimumSize: const Size(0, 40),
+                        textStyle: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('カテゴリー変更'),
+                      onPressed: editDisplayedCategories,
+                    ),
                   ),
                 ),
               ],
@@ -2413,6 +2451,7 @@ class _PracticeState extends State<Practice> with WidgetsBindingObserver {
 
   List<Widget> challengeCompletion() => [
     PracticeFinishedCard(category: category, level: practiceLevel),
+    ...completionShare(),
     const SizedBox(height: 16),
     heading(challengeResult == null ? '挑戦の自己評価' : '挑戦結果'),
     const SizedBox(height: 8),
@@ -2437,10 +2476,60 @@ class _PracticeState extends State<Practice> with WidgetsBindingObserver {
     ],
   ];
 
+  List<Widget> completionShare() {
+    final now = DateTime.now();
+    final total = todayStudy(
+      [...events, ...completedChallenges],
+      now,
+      pending: pendingCompletion?.event,
+    );
+    return [
+      if (total.questions >= 3 && tutorial == null) ...[
+        const SizedBox(height: 12),
+        Card(
+          elevation: 0,
+          color: Theme.of(context).colorScheme.primaryContainer,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  '今日の練習：${total.questions}問完了',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: busy
+                      ? null
+                      : () async {
+                          sharedThisPractice = true;
+                          await showDailyStudyShare(
+                            context,
+                            total: total,
+                            date: now,
+                            category: category,
+                            level: practiceLevel,
+                          );
+                        },
+                  icon: const Icon(Icons.ios_share),
+                  label: const Text('今日のがんばりをシェア'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
+    ];
+  }
+
   List<Widget> completion() {
     if (clips[index!].format == 'challenge') return challengeCompletion();
     return [
       PracticeFinishedCard(category: category, level: practiceLevel),
+      ...completionShare(),
       const SizedBox(height: 16),
       heading('今回の手応えは？'),
       const Text('手応えを選ぶと記録を保存して、スキルツリーに戻ります。'),

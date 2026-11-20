@@ -446,7 +446,7 @@ class _ActivityChartState extends State<ActivityChart> {
                         points.length * 48.0,
                         MediaQuery.sizeOf(context).width - 220,
                       ),
-                      height: 184,
+                      height: 200,
                       child: Stack(
                         children: [
                           Positioned(
@@ -482,10 +482,11 @@ class _ActivityChartState extends State<ActivityChart> {
                                           children: [
                                             const SizedBox(height: 157),
                                             SizedBox(
-                                              height: 24,
+                                              height: 38,
                                               child: FittedBox(
                                                 child: Text(
                                                   points[i].label,
+                                                  textAlign: TextAlign.center,
                                                   style: const TextStyle(
                                                     fontSize: 11,
                                                   ),
