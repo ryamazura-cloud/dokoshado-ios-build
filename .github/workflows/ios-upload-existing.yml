@@ -3,6 +3,11 @@ name: Dokoshado upload verified App Store build
 on:
   workflow_dispatch:
     inputs:
+      version:
+        description: App Store marketing version
+        required: true
+        default: "1.1"
+        type: string
       source_run_id:
         description: Successful signed build run ID
         required: true
@@ -31,6 +36,7 @@ jobs:
     timeout-minutes: 45
     environment: app-store-upload
     env:
+      EXPECTED_VERSION: ${{ inputs.version }}
       EXPECTED_BUILD: ${{ inputs.build_number }}
       EXPECTED_SHA256: ${{ inputs.ipa_sha256 }}
     steps:
@@ -45,6 +51,7 @@ jobs:
           test -n "$ASC_ISSUER_ID"
           test -n "$ASC_PRIVATE_KEY_BASE64"
           [[ "$EXPECTED_BUILD" =~ ^[1-9][0-9]*$ ]]
+          [[ "$EXPECTED_VERSION" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]]
           [[ "$EXPECTED_SHA256" =~ ^[0-9a-f]{64}$ ]]
       - name: Require an approved main-branch signing run
         env:
@@ -71,7 +78,7 @@ jobs:
           PY
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: dokoshado-app-store-1.0.0-${{ inputs.build_number }}
+          name: dokoshado-app-store-${{ inputs.version }}-${{ inputs.build_number }}
           run-id: ${{ inputs.source_run_id }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/dokoshado-upload
@@ -96,7 +103,7 @@ jobs:
           assert len(apps) == 1, 'Expected one app'
           app = apps[0]
           info = plistlib.loads((app / 'Info.plist').read_bytes())
-          assert (info['CFBundleIdentifier'], info['CFBundleShortVersionString'], info['CFBundleVersion']) == ('biz.wisemap.dokoshado', '1.0.0', os.environ['EXPECTED_BUILD']), 'App identity mismatch'
+          assert (info['CFBundleIdentifier'], info['CFBundleShortVersionString'], info['CFBundleVersion']) == ('biz.wisemap.dokoshado', os.environ['EXPECTED_VERSION'], os.environ['EXPECTED_BUILD']), 'App identity mismatch'
           assert info['GADApplicationIdentifier'] == 'ca-app-pub-2142000020431433~2869811033', 'AdMob app mismatch'
           firebase = plistlib.loads((app / 'GoogleService-Info.plist').read_bytes())
           assert firebase['BUNDLE_ID'] == 'biz.wisemap.dokoshado' and firebase['PROJECT_ID'] == 'encre-ab3d8', 'Firebase mismatch'
@@ -128,7 +135,7 @@ jobs:
           set -euo pipefail
           xcrun altool --validate-app --type ios --file "$DOKOSHADO_IPA" --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
           xcrun altool --upload-app --type ios --file "$DOKOSHADO_IPA" --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
-          echo "Uploaded version 1.0.0 ($EXPECTED_BUILD). Apple processing and TestFlight verification remain pending." >> "$GITHUB_STEP_SUMMARY"
+          echo "Uploaded version $EXPECTED_VERSION ($EXPECTED_BUILD). Apple processing and TestFlight verification remain pending." >> "$GITHUB_STEP_SUMMARY"
       - name: Remove temporary upload authentication
         if: always()
         run: |

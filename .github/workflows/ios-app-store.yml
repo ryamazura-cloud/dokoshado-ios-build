@@ -3,8 +3,13 @@ name: Dokoshado App Store build
 on:
   workflow_dispatch:
     inputs:
+      version:
+        description: App Store marketing version
+        required: true
+        default: "1.1"
+        type: string
       build_number:
-        description: Unused App Store Connect build number for version 1.0.0
+        description: Unused App Store Connect build number
         required: true
         type: string
 
@@ -24,6 +29,36 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+      - name: Select available stable Xcode and check SDK requirement
+        run: |
+          set -euo pipefail
+          selected=$(python3 - <<'PY'
+          import glob, pathlib, plistlib, re
+          candidates = []
+          for path in glob.glob('/Applications/Xcode*.app'):
+              app = pathlib.Path(path)
+              if any(word in app.name.lower() for word in ('beta', 'rc')):
+                  continue
+              info = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
+              version = info['CFBundleShortVersionString']
+              if re.fullmatch(r'\d+(?:\.\d+)*', version):
+                  parts = tuple(map(int, version.split('.')))
+                  if parts[0] >= 27:
+                      candidates.append((parts, str(app / 'Contents/Developer')))
+          print(max(candidates)[1] if candidates else '')
+          PY
+          )
+          if [[ -n "$selected" ]]; then
+            export DEVELOPER_DIR="$selected"
+            echo "DEVELOPER_DIR=$selected" >> "$GITHUB_ENV"
+          fi
+          xcodebuild -version
+          sdk=$(xcrun --sdk iphoneos --show-sdk-version)
+          echo "Selected iOS SDK: $sdk"
+          if [[ "$(date -u +%Y%m%d)" -ge 20270401 && "${sdk%%.*}" -lt 27 ]]; then
+            echo '::error::Apple requires iOS 27 SDK / Xcode 27 or later from April 2027.'
+            exit 1
+          fi
       - name: Check signing configuration
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
@@ -119,17 +154,19 @@ jobs:
           RUBY
       - name: Build IPA
         env:
+          BUILD_VERSION: ${{ inputs.version }}
           BUILD_NUMBER: ${{ inputs.build_number }}
         run: |
           set -euo pipefail
           [[ "$BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]]
-          flutter build ipa --release --no-pub --build-name 1.0.0 --build-number "$BUILD_NUMBER" --export-options-plist="$RUNNER_TEMP/ExportOptions.plist" \
+          [[ "$BUILD_VERSION" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]]
+          flutter build ipa --release --no-pub --build-name "$BUILD_VERSION" --build-number "$BUILD_NUMBER" --export-options-plist="$RUNNER_TEMP/ExportOptions.plist" \
             --dart-define=DOKOSHADO_LIVE_ADS=true
           test -n "$(find build/ios/ipa -name '*.ipa' -print -quit)"
           shasum -a 256 build/ios/ipa/*.ipa
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: dokoshado-app-store-1.0.0-${{ inputs.build_number }}
+          name: dokoshado-app-store-${{ inputs.version }}-${{ inputs.build_number }}
           path: build/ios/ipa/*.ipa
           if-no-files-found: error
           retention-days: 7
