@@ -33,8 +33,19 @@ jobs:
           git -C "$RUNNER_TEMP/flutter" remote add origin https://github.com/flutter/flutter.git
           git -C "$RUNNER_TEMP/flutter" fetch --depth 1 origin c197ca5199e9ee5661e865596c9c07294dfab51c
           git -C "$RUNNER_TEMP/flutter" checkout --detach FETCH_HEAD
+          git -C "$RUNNER_TEMP/flutter" tag --force 3.47.9 c197ca5199e9ee5661e865596c9c07294dfab51c
           echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
 
+      - name: Verify Flutter SDK version
+        run: |
+          set -euo pipefail
+          flutter --version --machine > "$RUNNER_TEMP/flutter-version.json"
+          python3 - <<'PY'
+          import json, os, pathlib
+          version = json.loads(pathlib.Path(os.environ['RUNNER_TEMP'], 'flutter-version.json').read_text())
+          assert version['frameworkVersion'] == '3.47.9', 'Pinned Flutter version was not recognized'
+          print('Verified Flutter ' + version['frameworkVersion'])
+          PY
       - name: Install Firebase configuration
         env:
           IOS_FIREBASE_CONFIG_BASE64: ${{ secrets.IOS_FIREBASE_CONFIG_BASE64 }}
