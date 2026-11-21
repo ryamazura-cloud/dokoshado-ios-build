@@ -42,7 +42,20 @@ jobs:
           flutter --version --machine > "$RUNNER_TEMP/flutter-version.json"
           python3 - <<'PY'
           import json, os, pathlib
-          version = json.loads(pathlib.Path(os.environ['RUNNER_TEMP'], 'flutter-version.json').read_text())
+          output = pathlib.Path(os.environ['RUNNER_TEMP'], 'flutter-version.json').read_text()
+          version = None
+          decoder = json.JSONDecoder()
+          for index, char in enumerate(output):
+              if char != '{':
+                  continue
+              try:
+                  candidate, _ = decoder.raw_decode(output, index)
+              except json.JSONDecodeError:
+                  continue
+              if isinstance(candidate, dict) and 'frameworkVersion' in candidate:
+                  version = candidate
+                  break
+          assert version is not None, 'Flutter did not return version metadata'
           assert version['frameworkVersion'] == '3.47.9', 'Pinned Flutter version was not recognized'
           print('Verified Flutter ' + version['frameworkVersion'])
           PY
