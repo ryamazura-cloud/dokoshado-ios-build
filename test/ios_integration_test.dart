@@ -58,7 +58,7 @@ void main() {
             'unlimited': owned,
             'ready': true,
             'busy': false,
-            'price': '￥900',
+            'price': '￥980',
           };
         },
       );
@@ -75,8 +75,8 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(home: PurchasePlanDialog(access: access)),
       );
-      expect(find.text('￥900（買い切り）'), findsOneWidget);
-      await tester.tap(find.text('￥900で購入する'));
+      expect(find.text('￥980（買い切り）'), findsOneWidget);
+      await tester.tap(find.text('￥980で購入する'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('購入を復元'));
       await tester.pumpAndSettle();
@@ -105,5 +105,13 @@ void main() {
     expect(access.message, startsWith('App Store'));
     expect(access.unlimited, false);
     expect(access.initialized, true);
+    await tester.pumpWidget(
+      MaterialApp(home: PurchasePlanDialog(access: access)),
+    );
+    expect(find.text('日本での価格は980円（買い切り）です。'), findsOneWidget);
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNull,
+    );
   }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
 }

@@ -140,7 +140,7 @@ List<PeriodTotal> chartPeriods(
         : DateTime(start.year, start.month, start.day + 1);
     return sumPeriod(
       days,
-      monthly ? '${start.month}月' : '${start.day}\n${weekdayLabel(start)}',
+      monthly ? '${start.month}\n月' : '${start.day}\n${weekdayLabel(start)}',
       start,
       end,
     );

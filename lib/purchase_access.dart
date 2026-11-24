@@ -7,6 +7,7 @@ import 'tickets.dart';
 class PurchaseAccess extends ChangeNotifier {
   static const channel = MethodChannel('biz.wisemap.dokoshado/purchases');
   static const _preview = bool.fromEnvironment('DOKOSHADO_PREVIEW');
+  static const japanBuyoutPrice = 980;
 
   bool unlimited = false;
   bool initialized = false;
@@ -62,7 +63,7 @@ class PurchaseAccess extends ChangeNotifier {
         'unlimited': false,
         'ready': false,
         'busy': false,
-        'price': '￥980',
+        'price': '￥$japanBuyoutPrice',
         'message': 'この確認版では購入できません。購入・復元は通常のどこシャドでご利用ください。',
       });
       return;
@@ -129,7 +130,7 @@ class PurchasePlanDialog extends StatelessWidget {
             access.unlimited
                 ? '無制限プランをご利用中です。'
                 : access.price == null
-                ? '価格は${access.storeName}で確認できます。'
+                ? '日本での価格は${PurchaseAccess.japanBuyoutPrice}円（買い切り）です。'
                 : '${access.price}（買い切り）',
           ),
           if (access.busy) ...[

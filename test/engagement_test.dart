@@ -157,13 +157,13 @@ void main() {
     expect(todayStudy(completed, DateTime(2026, 11, 21)).questions, 0);
   });
 
-  test('daily chart uses day newline weekday across month boundary', () {
+  test('daily and monthly chart labels use two lines', () {
     final points = chartPeriods({}, DateTime(2026, 12, 1), monthly: false);
     expect(points.last.label, '1\n火');
     expect(points[points.length - 2].label, '30\n月');
     expect(
       chartPeriods({}, DateTime(2026, 12, 1), monthly: true).last.label,
-      '12月',
+      '12\n月',
     );
   });
 
